@@ -1,0 +1,103 @@
+using EncyExtensionMcp;
+using Xunit;
+
+public class PublishToolTests
+{
+    private static ExtensionStoreTools Tools(FakeProcessRunner proc, FakeStoreClient? store = null)
+        => new(proc, store ?? new FakeStoreClient());
+
+    [Fact]
+    public async Task RejectsNonSemver()
+    {
+        var res = await Tools(new FakeProcessRunner()).PublishExtension("not-a-version");
+        Assert.StartsWith("ERROR", res);
+        Assert.Contains("semver", res);
+    }
+
+    [Fact]
+    public async Task RefusesDirtyTreeWithoutCommitAll()
+    {
+        var proc = new FakeProcessRunner().On("git status --porcelain", stdout: " M src/Extension.cs\n");
+        var res = await Tools(proc).PublishExtension("1.0.0");
+        Assert.StartsWith("ERROR", res);
+        Assert.Contains("uncommitted", res);
+        Assert.DoesNotContain(proc.Calls, c => c.StartsWith("git tag"));
+    }
+
+    [Fact]
+    public async Task CommitAllCommitsThenTags()
+    {
+        var proc = new FakeProcessRunner()
+            .On("git status --porcelain", stdout: " M x\n")
+            .On("git add -A")
+            .On("git commit")
+            .On("git rev-parse", exit: 1) // tag does not exist
+            .On("git tag")
+            .On("git push origin HEAD")
+            .On("git push origin v1.0.0")
+            .On("gh run list", stdout: "[]");
+        var res = await Tools(proc).PublishExtension("1.0.0", commitAll: true);
+        Assert.DoesNotContain("ERROR", res);
+        Assert.Contains(proc.Calls, c => c.StartsWith("git commit -m \"Release v1.0.0\""));
+        Assert.Contains(proc.Calls, c => c == "git tag v1.0.0");
+        Assert.Contains(proc.Calls, c => c == "git push origin v1.0.0");
+    }
+
+    [Fact]
+    public async Task RefusesExistingTag()
+    {
+        var proc = new FakeProcessRunner()
+            .On("git status --porcelain", stdout: "")
+            .On("git rev-parse", exit: 0, stdout: "abc123"); // tag exists
+        var res = await Tools(proc).PublishExtension("1.0.0");
+        Assert.StartsWith("ERROR", res);
+        Assert.Contains("already exists", res);
+    }
+
+    [Fact]
+    public async Task StatusReportsPendingModeration()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "mcp-st-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(dir, "src"));
+        File.WriteAllText(Path.Combine(dir, "src", "package.info.json"), "{\"packageId\":\"MyExt\"}");
+        try
+        {
+            var proc = new FakeProcessRunner().On("gh run list",
+                stdout: "[{\"databaseId\":42,\"status\":\"completed\",\"conclusion\":\"success\",\"url\":\"https://gh/run/42\"}]");
+            var store = new FakeStoreClient { Card = new StoreCard("myext", Approved: false, Unlisted: false, "0.1.0") };
+            var res = await Tools(proc, store).PublishStatus(dir);
+            Assert.Contains("awaiting store moderation", res);
+            Assert.Contains("https://store.test/extension/myext", res);
+        }
+        finally { Directory.Delete(dir, true); }
+    }
+
+    [Fact]
+    public async Task StatusShowsFailedLogTail()
+    {
+        var proc = new FakeProcessRunner()
+            .On("gh run list",
+                stdout: "[{\"databaseId\":7,\"status\":\"completed\",\"conclusion\":\"failure\",\"url\":\"https://gh/run/7\"}]")
+            .On("gh run view 7 --log-failed", stdout: "boom: pack produced no .nupkg");
+        var res = await Tools(proc).PublishStatus(Path.GetTempPath());
+        Assert.Contains("failed", res);
+        Assert.Contains("pack produced no .nupkg", res);
+    }
+
+    [Fact]
+    public async Task CreateRejectsBadName()
+    {
+        var res = await Tools(new FakeProcessRunner()).CreateExtensionRepo("bad name!");
+        Assert.StartsWith("ERROR", res);
+    }
+
+    [Fact]
+    public async Task CreateFailsFastWithoutGhAuth()
+    {
+        var proc = new FakeProcessRunner().On("gh api user", exit: 1, stderr: "not logged in");
+        var res = await Tools(proc).CreateExtensionRepo("GoodName",
+            targetDir: Path.Combine(Path.GetTempPath(), "mcp-cr-" + Guid.NewGuid().ToString("N")));
+        Assert.StartsWith("ERROR", res);
+        Assert.Contains("gh auth login", res);
+    }
+}
