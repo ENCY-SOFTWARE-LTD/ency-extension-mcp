@@ -10,8 +10,10 @@ MCP server for the "write an ENCY extension in Cursor, never copy a file by hand
 | `publish_status` | Follows the run (failure log tail when red) and reports the store card + moderation state when green. |
 
 Auth model: the server shells out to the **author's own `gh` and `git`** — your GitHub login is
-the credential. The store publish token is taken from the server's `ENCY_STORE_TOKEN` env var
-and pushed into each new repo as a secret; the author never handles it.
+the credential there. For the store, `ency-extension-mcp login` (once) performs a Keycloak
+login and keeps only a refresh token; the server then mints fresh access tokens itself and
+plants one as the secret of each new repo — needed for the FIRST publish only, after which the
+repo publishes via GitHub OIDC with no secret at all. The author never touches a token.
 
 ## Setup (Cursor)
 
@@ -25,22 +27,25 @@ dotnet tool install -g EncySoftware.ExtensionStoreMcp --add-source https://nexus
 
 Until then, from a clone: `dotnet pack src -c Release -o pkg && dotnet tool install -g EncySoftware.ExtensionStoreMcp --add-source ./pkg`
 
+Log in to the store once (your licsys account; only a refresh token is stored, under %APPDATA%):
+
+```bash
+ency-extension-mcp login
+```
+
 `.cursor/mcp.json` (project or global `~/.cursor/mcp.json`):
 
 ```json
 {
   "mcpServers": {
     "ency-extension-store": {
-      "command": "ency-extension-mcp",
-      "env": {
-        "ENCY_STORE_TOKEN": "<store publish token>"
-      }
+      "command": "ency-extension-mcp"
     }
   }
 }
 ```
 
-(Running from a clone instead: `"command": "dotnet", "args": ["run", "--project", "<clone>/src"]`.)
+(The `ENCY_STORE_TOKEN` env var still overrides the stored login when set — CI/debug escape hatch.)
 
 ## The flow it enables
 

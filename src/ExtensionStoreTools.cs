@@ -12,7 +12,7 @@ namespace EncyExtensionMcp;
 /// Thin wrappers over `gh` + `git` + the store REST API — the author's own gh login is the auth.
 /// </summary>
 [McpServerToolType]
-public class ExtensionStoreTools(IProcessRunner proc, IStoreClient store)
+public class ExtensionStoreTools(IProcessRunner proc, IStoreClient store, StoreTokenProvider tokens)
 {
     private const string TemplateRepo = "ENCY-SOFTWARE-LTD/ency-extension-template";
     private const string WorkflowFile = "publish.yml";
@@ -69,19 +69,26 @@ public class ExtensionStoreTools(IProcessRunner proc, IStoreClient store)
         var push = await proc.Run("git", "push", cloneDir);
         if (!push.Ok) return $"ERROR: push of the rename commit failed:\n{push.StdErr.Trim()}";
 
-        // Publish secret: taken from THIS server's environment so the author never sees/handles it.
-        string secretNote;
-        var token = Environment.GetEnvironmentVariable("ENCY_STORE_TOKEN");
-        if (string.IsNullOrWhiteSpace(token))
+        // Publish secret for the FIRST publish (afterwards the repo publishes via GitHub OIDC).
+        // The token comes from the server's own store login — the author never sees/handles it.
+        string? secretNote = null;
+        string? token = null;
+        try { token = await tokens.GetAccessToken(); }
+        catch (InvalidOperationException e) { secretNote = "! " + e.Message; }
+        if (secretNote != null)
         {
-            secretNote = "! ENCY_STORE_TOKEN is not set in the MCP server environment — set the repo secret yourself: " +
-                         $"gh secret set ENCY_STORE_TOKEN --repo {full}";
+            // keep the login-expired message from above
+        }
+        else if (string.IsNullOrWhiteSpace(token))
+        {
+            secretNote = "! no store login — run `ency-extension-mcp login` once in a terminal, " +
+                         $"then set the secret yourself: gh secret set ENCY_STORE_TOKEN --repo {full}";
         }
         else
         {
             var secret = await proc.Run("gh", $"secret set ENCY_STORE_TOKEN --repo {full} --body \"{token}\"");
             secretNote = secret.Ok
-                ? "publish secret ENCY_STORE_TOKEN is set"
+                ? "publish secret ENCY_STORE_TOKEN is set (needed for the first publish only)"
                 : "! could not set the publish secret automatically: " + secret.StdErr.Trim();
         }
 

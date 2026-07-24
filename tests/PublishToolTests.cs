@@ -4,7 +4,7 @@ using Xunit;
 public class PublishToolTests
 {
     private static ExtensionStoreTools Tools(FakeProcessRunner proc, FakeStoreClient? store = null)
-        => new(proc, store ?? new FakeStoreClient());
+        => new(proc, store ?? new FakeStoreClient(), new StoreTokenProvider());
 
     [Fact]
     public async Task RejectsNonSemver()
