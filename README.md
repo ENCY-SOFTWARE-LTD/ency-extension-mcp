@@ -17,14 +17,21 @@ and pushed into each new repo as a secret; the author never handles it.
 
 Prerequisites: .NET 8 SDK, `git`, `gh` (`gh auth login` once).
 
+Install the tool (once it is published to the ENCY feed):
+
+```bash
+dotnet tool install -g EncySoftware.ExtensionStoreMcp --add-source https://nexus.encycam.com/repository/master/index.json
+```
+
+Until then, from a clone: `dotnet pack src -c Release -o pkg && dotnet tool install -g EncySoftware.ExtensionStoreMcp --add-source ./pkg`
+
 `.cursor/mcp.json` (project or global `~/.cursor/mcp.json`):
 
 ```json
 {
   "mcpServers": {
     "ency-extension-store": {
-      "command": "dotnet",
-      "args": ["run", "--project", "C:/spryt/ency-extension-mcp/src"],
+      "command": "ency-extension-mcp",
       "env": {
         "ENCY_STORE_TOKEN": "<store publish token>"
       }
@@ -33,7 +40,7 @@ Prerequisites: .NET 8 SDK, `git`, `gh` (`gh auth login` once).
 }
 ```
 
-(Once the server ships as a dotnet tool, `command` becomes `ency-extension-mcp` with no args.)
+(Running from a clone instead: `"command": "dotnet", "args": ["run", "--project", "<clone>/src"]`.)
 
 ## The flow it enables
 
