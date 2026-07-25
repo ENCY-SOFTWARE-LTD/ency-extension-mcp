@@ -28,21 +28,26 @@ ency-extension-mcp claim MyCoolExtension owner/MyCoolExtension
 
 Prerequisites: .NET 8 SDK, `git`, `gh` (`gh auth login` once).
 
-Install the tool (once it is published to the ENCY feed):
+Two commands:
 
 ```bash
-dotnet tool install -g EncySoftware.ExtensionStoreMcp --add-source https://nexus.encycam.com/repository/master/index.json
+dotnet tool install -g EncySoftware.ExtensionStoreMcp
+ency-extension-mcp setup
 ```
 
-Until then, from a clone: `dotnet pack src -c Release -o pkg && dotnet tool install -g EncySoftware.ExtensionStoreMcp --add-source ./pkg`
+`setup` registers the server in `~/.cursor/mcp.json` (merging, so other MCP servers stay), registers it
+with Claude Code when its CLI is present, and logs you in to the store if you have not yet (licsys
+account; only a refresh token is kept, under `%APPDATA%`). Restart Cursor afterwards. `--no-login`
+skips the login step.
 
-Log in to the store once (your licsys account; only a refresh token is stored, under %APPDATA%):
+Until the package reaches nuget.org, install it from the `.nupkg` attached to the latest
+[release](https://github.com/ENCY-SOFTWARE-LTD/ency-extension-mcp/releases):
 
 ```bash
-ency-extension-mcp login
+dotnet tool install -g EncySoftware.ExtensionStoreMcp --add-source <folder with the .nupkg>
 ```
 
-`.cursor/mcp.json` (project or global `~/.cursor/mcp.json`):
+Doing it by hand instead of `setup` means `ency-extension-mcp login` plus this in `~/.cursor/mcp.json`:
 
 ```json
 {

@@ -1,0 +1,66 @@
+# Push a version tag (v0.1.3) -> pack the dotnet tool with that version -> publish to nuget.org,
+# so installing it is a single `dotnet tool install -g EncySoftware.ExtensionStoreMcp`.
+#
+# Needs the NUGET_API_KEY secret: an API key of the nuget.org account that already owns the
+# EncySoftware.* packages (the same account that publishes the CAMAPI SDK). Until the secret exists
+# the job still runs and attaches the .nupkg to the GitHub Release, which authors can install from.
+
+name: publish-tool
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: Pack only, publish nothing
+        type: boolean
+        default: true
+
+permissions:
+  contents: write        # attach the package to the release
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Version from tag
+        id: ver
+        shell: bash
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            v="${GITHUB_REF_NAME#v}"
+          else
+            v=$(grep -oPm1 '(?<=<Version>)[^<]+' src/EncyExtensionMcp.csproj)
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "publishing version $v"
+
+      - name: Test
+        run: dotnet test tests/EncyExtensionMcp.Tests.csproj -v q --nologo
+
+      - name: Pack
+        run: dotnet pack src -c Release -o pkg -p:Version=${{ steps.ver.outputs.version }}
+
+      - name: Attach to the release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${GITHUB_REF_NAME}" pkg/*.nupkg --generate-notes || gh release upload "${GITHUB_REF_NAME}" pkg/*.nupkg --clobber
+
+      - name: Publish to nuget.org
+        if: github.ref_type == 'tag' && inputs.dry-run != true
+        env:
+          KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          if [ -z "$KEY" ]; then
+            echo "::warning::NUGET_API_KEY is not set — skipped nuget.org, the package is on the release only"
+            exit 0
+          fi
+          dotnet nuget push pkg/*.nupkg -s https://api.nuget.org/v3/index.json -k "$KEY" --skip-duplicate

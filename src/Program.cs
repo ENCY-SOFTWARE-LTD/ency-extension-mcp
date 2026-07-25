@@ -14,6 +14,15 @@ if (args.Length > 0 && args[0].Equals("claim", StringComparison.OrdinalIgnoreCas
     return await ClaimCommand.Run(args, new StoreClient(), tokenProvider.GetAccessToken, Console.WriteLine);
 }
 
+// `ency-extension-mcp setup [--no-login]` — register in the editor's MCP config and log in.
+if (args.Length > 0 && args[0].Equals("setup", StringComparison.OrdinalIgnoreCase))
+{
+    var tokenProvider = new StoreTokenProvider();
+    return await SetupCommand.Run(SetupCommand.DefaultCursorConfigPath, new ProcessRunner(),
+        () => File.Exists(StoreTokenProvider.AuthFilePath), tokenProvider.LoginInteractive,
+        args.Contains("--no-login", StringComparer.OrdinalIgnoreCase), Console.WriteLine);
+}
+
 var builder = Host.CreateApplicationBuilder(args);
 
 // stdout carries the MCP protocol — all logging must go to stderr.
