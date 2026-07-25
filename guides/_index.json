@@ -1,0 +1,12 @@
+{
+  "verifiedAgainst": "EncySoftware/cam-api-examples@62a9cf7, checked 2026-07-25",
+  "guides": [
+    {
+      "key": "utility",
+      "file": "utility.md",
+      "cursorRule": "type-utility.mdc",
+      "description": "Add a button to the ENCY utilities menu or toolbar; runs on click with the full application context",
+      "storeType": "utility"
+    }
+  ]
+}

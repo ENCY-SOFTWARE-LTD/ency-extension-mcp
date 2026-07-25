@@ -23,4 +23,11 @@
     <PackageReference Include="ModelContextProtocol" Version="1.4.1" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
   </ItemGroup>
+
+  <!-- The extension-type skill library travels inside the assembly, so get_extension_guide works
+       offline and ships with the tool version. Same files feed tools/sync-rules.ps1. -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\guides\*.md" LogicalName="EncyExtensionMcp.guides.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="..\guides\_index.json" LogicalName="EncyExtensionMcp.guides._index.json" />
+  </ItemGroup>
 </Project>
