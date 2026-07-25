@@ -16,11 +16,13 @@ builder.Services.AddSingleton<IProcessRunner, ProcessRunner>();
 builder.Services.AddSingleton<IStoreClient, StoreClient>();
 builder.Services.AddSingleton<StoreTokenProvider>();
 builder.Services.AddSingleton<ExtensionStoreTools>();
+builder.Services.AddSingleton<GuideTools>();
 
 builder.Services
     .AddMcpServer()
     .WithStdioServerTransport()
-    .WithTools<ExtensionStoreTools>();
+    .WithTools<ExtensionStoreTools>()
+    .WithTools<GuideTools>();
 
 await builder.Build().RunAsync();
 return 0;

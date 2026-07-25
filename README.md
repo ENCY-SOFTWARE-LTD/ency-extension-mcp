@@ -8,6 +8,7 @@ MCP server for the "write an ENCY extension in Cursor, never copy a file by hand
 | `create_extension_repo` | GitHub repo from the ENCY template → waits for the copy → clones → renames the extension → sets the publish secret → pushes. |
 | `publish_extension` | Tags `vX.Y.Z` and pushes — GitHub Actions builds, packs and publishes to the [ENCY Extension Store](https://dmc.encycam.com/store). |
 | `publish_status` | Follows the run (failure log tail when red) and reports the store card + moderation state when green. |
+| `get_extension_guide` | The skill library: which of the eight ENCY entry points to implement, how to register it, a minimal skeleton and the traps. `type=list` first, then the type. |
 
 Auth model: the server shells out to the **author's own `gh` and `git`** — your GitHub login is
 the credential there. For the store, `ency-extension-mcp login` (once) performs a Keycloak
@@ -51,10 +52,14 @@ ency-extension-mcp login
 
 1. In Cursor: *"create an ENCY extension called ToolpathTimer"* → `create_extension_repo`
    makes the repo, clones it next to your workspace, renames everything, wires the secret.
-2. Write the code in `src/` — the template carries Cursor rules that teach the agent the
-   extension anatomy (factory, settings.json ids, package.info.json).
-3. *"publish it as 0.1.0"* → `publish_extension` tags and pushes; CI does the rest.
-4. *"did it publish?"* → `publish_status` → run status → store card link. New extensions land
+2. *"it should add an item to the right-click menu of an operation"* → `get_extension_guide`
+   (`list` → `operation_popup`) tells the agent which interface to implement, which
+   `*.settings.json` key to use and what breaks. The template carries the same guides as Cursor
+   rules (`.cursor/rules/type-*.mdc`), generated from `guides/` here — the tool is the fresh copy.
+3. Write the code in `src/` — the always-on rule covers the anatomy (factory, settings.json ids,
+   package.info.json).
+4. *"publish it as 0.1.0"* → `publish_extension` tags and pushes; CI does the rest.
+5. *"did it publish?"* → `publish_status` → run status → store card link. New extensions land
    hidden until a store moderator approves them; the direct card link works immediately.
 
 ## Development
