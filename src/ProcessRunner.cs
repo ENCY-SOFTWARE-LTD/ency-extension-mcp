@@ -38,7 +38,17 @@ public class ProcessRunner : IProcessRunner
             foreach (var (k, v) in env) psi.Environment[k] = v;
 
         using var p = new Process { StartInfo = psi };
-        p.Start();
+        try
+        {
+            p.Start();
+        }
+        catch (System.ComponentModel.Win32Exception e)
+        {
+            // The executable is not on PATH. Callers probe for optional tools (claude, gh), so a
+            // missing command is an ordinary failed result — throwing here took down the whole
+            // process instead (seen live 2026-07-25: `setup` on a machine without Claude Code).
+            return new ProcResult(127, "", $"{fileName} is not installed or not on PATH: {e.Message}");
+        }
         p.StandardInput.Close();
         var stdout = p.StandardOutput.ReadToEndAsync();
         var stderr = p.StandardError.ReadToEndAsync();

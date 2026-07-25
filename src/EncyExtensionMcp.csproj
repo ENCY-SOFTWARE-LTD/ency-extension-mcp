@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
@@ -12,7 +12,7 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>ency-extension-mcp</ToolCommandName>
     <PackageId>EncySoftware.ExtensionStoreMcp</PackageId>
-    <Version>0.1.3</Version>
+    <Version>0.1.4</Version>
     <Authors>EncySoftware</Authors>
     <Description>MCP server for Cursor: create, publish and track ENCY extensions in the ENCY Extension Store</Description>
     <PackageProjectUrl>https://github.com/ENCY-SOFTWARE-LTD/ency-extension-mcp</PackageProjectUrl>
