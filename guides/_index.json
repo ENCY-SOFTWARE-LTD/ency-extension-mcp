@@ -21,6 +21,20 @@
       "cursorRule": "type-utility-runner.mdc",
       "description": "Intercept or wrap how another utility is executed - custom file selector, pre/post processing",
       "storeType": "utility_runner"
+    },
+    {
+      "key": "operation_popup",
+      "file": "operation-popup.md",
+      "cursorRule": "type-operation-popup.mdc",
+      "description": "Add items to the right-click menu of a technology operation in the operations tree",
+      "storeType": "operation_popup"
+    },
+    {
+      "key": "geom_model_node_popup",
+      "file": "geom-node-popup.md",
+      "cursorRule": "type-geom-node-popup.mdc",
+      "description": "Add items to the right-click menu of a node in the 3D geometry model tree",
+      "storeType": "geom_model_node_popup"
     }
   ]
 }
