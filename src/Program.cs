@@ -7,6 +7,13 @@ using Microsoft.Extensions.Logging;
 if (args.Length > 0 && args[0].Equals("login", StringComparison.OrdinalIgnoreCase))
     return await new StoreTokenProvider().LoginInteractive();
 
+// `ency-extension-mcp claim <PackageId> <owner/repo>` — bind a repo so its CI publishes without a secret.
+if (args.Length > 0 && args[0].Equals("claim", StringComparison.OrdinalIgnoreCase))
+{
+    var tokenProvider = new StoreTokenProvider();
+    return await ClaimCommand.Run(args, new StoreClient(), tokenProvider.GetAccessToken, Console.WriteLine);
+}
+
 var builder = Host.CreateApplicationBuilder(args);
 
 // stdout carries the MCP protocol — all logging must go to stderr.

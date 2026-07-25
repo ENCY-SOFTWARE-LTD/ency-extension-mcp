@@ -12,6 +12,14 @@ public interface IStoreClient
 {
     /** Card by slug or packageId; null when the store has no such extension (yet). */
     Task<StoreCard?> GetCard(string slugOrPackageId);
+
+    /**
+     * Bind the repository to the package name up front, so the first CI publish authenticates with
+     * GitHub's OIDC token and the repository needs no store secret at all. Returns null on success,
+     * otherwise the reason (shown to the author, who can then fall back to a repo secret).
+     */
+    Task<string?> ClaimPackage(string packageId, string repository, string accessToken);
+
     string StoreBaseUrl { get; }
 }
 
@@ -38,5 +46,20 @@ public class StoreClient : IStoreClient
             r.TryGetProperty("approved", out var a) && a.GetBoolean(),
             r.TryGetProperty("unlisted", out var u) && u.GetBoolean(),
             r.TryGetProperty("latestVersion", out var v) ? v.GetString() : null);
+    }
+
+    public async Task<string?> ClaimPackage(string packageId, string repository, string accessToken)
+    {
+        var req = new HttpRequestMessage(HttpMethod.Put,
+            $"{_apiBase}/publishers/{Uri.EscapeDataString(packageId)}")
+        {
+            Content = new StringContent(JsonSerializer.Serialize(new { repository }),
+                System.Text.Encoding.UTF8, "application/json"),
+        };
+        req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+        var resp = await Http.SendAsync(req);
+        if (resp.IsSuccessStatusCode) return null;
+        string body = await resp.Content.ReadAsStringAsync();
+        return $"{(int)resp.StatusCode} {resp.ReasonPhrase}: {body.Trim()}";
     }
 }

@@ -26,6 +26,16 @@ public class FakeProcessRunner : IProcessRunner
 public class FakeStoreClient : IStoreClient
 {
     public StoreCard? Card { get; set; }
+    /** Set to a message to make the claim fail, as the store would when the name is taken. */
+    public string? ClaimFailure { get; set; }
+    public List<(string PackageId, string Repository)> Claims { get; } = new();
+
     public string StoreBaseUrl => "https://store.test";
     public Task<StoreCard?> GetCard(string slugOrPackageId) => Task.FromResult(Card);
+
+    public Task<string?> ClaimPackage(string packageId, string repository, string accessToken)
+    {
+        Claims.Add((packageId, repository));
+        return Task.FromResult(ClaimFailure);
+    }
 }

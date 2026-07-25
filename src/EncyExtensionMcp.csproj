@@ -19,6 +19,11 @@
     <RepositoryUrl>https://github.com/ENCY-SOFTWARE-LTD/ency-extension-mcp</RepositoryUrl>
   </PropertyGroup>
 
+  <!-- Tests exercise internal helpers (publisher bootstrap) without widening the tool surface. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="EncyExtensionMcp.Tests" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="ModelContextProtocol" Version="1.4.1" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />

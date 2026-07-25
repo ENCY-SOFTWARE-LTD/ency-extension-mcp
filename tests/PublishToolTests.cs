@@ -91,6 +91,44 @@ public class PublishToolTests
         Assert.StartsWith("ERROR", res);
     }
 
+    /// <summary>
+    /// The default bootstrap must be "no credential in GitHub": claiming the name binds the repository,
+    /// and the workflow then authenticates with its own OIDC token — including on the first publish,
+    /// which previously forced a long-lived store token into the repository secrets.
+    /// </summary>
+    [Fact]
+    public async Task ClaimingTheNameReplacesTheRepositorySecret()
+    {
+        var store = new FakeStoreClient();
+        var proc = new FakeProcessRunner();
+        string note = await Tools(proc, store).BootstrapPublisherAuth("MyExt", "acme/MyExt", "tok");
+
+        Assert.Equal(("MyExt", "acme/MyExt"), store.Claims.Single());
+        Assert.Contains("no repository secret", note);
+        Assert.DoesNotContain("ENCY_STORE_TOKEN", note);
+    }
+
+    [Fact]
+    public async Task FallsBackToTheSecretWhenTheNameCannotBeClaimed()
+    {
+        var store = new FakeStoreClient { ClaimFailure = "403 Forbidden: claimed by someone else" };
+        var proc = new FakeProcessRunner().On("gh secret set ENCY_STORE_TOKEN");
+        string note = await Tools(proc, store).BootstrapPublisherAuth("Taken", "acme/Taken", "tok");
+
+        Assert.Contains("could not claim", note);
+        Assert.Contains("ENCY_STORE_TOKEN", note);
+        Assert.False(note.StartsWith("!"), "the fallback worked, so this is not an error note");
+    }
+
+    [Fact]
+    public async Task SaysWhatToDoWhenThereIsNoStoreLogin()
+    {
+        string note = await Tools(new FakeProcessRunner(), new FakeStoreClient())
+            .BootstrapPublisherAuth("MyExt", "acme/MyExt", token: null);
+        Assert.StartsWith("!", note);
+        Assert.Contains("ency-extension-mcp login", note);
+    }
+
     [Fact]
     public async Task CreateFailsFastWithoutGhAuth()
     {

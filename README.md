@@ -12,9 +12,17 @@ MCP server for the "write an ENCY extension in Cursor, never copy a file by hand
 
 Auth model: the server shells out to the **author's own `gh` and `git`** — your GitHub login is
 the credential there. For the store, `ency-extension-mcp login` (once) performs a Keycloak
-login and keeps only a refresh token; the server then mints fresh access tokens itself and
-plants one as the secret of each new repo — needed for the FIRST publish only, after which the
-repo publishes via GitHub OIDC with no secret at all. The author never touches a token.
+login and keeps only a refresh token. `create_extension_repo` then **claims the extension name for
+the new repository**, so no credential is stored in GitHub at all: every publish, the first one
+included, authenticates with the workflow's own GitHub OIDC token. If the claim cannot be made (store
+unreachable, name owned by somebody else) the tool falls back to planting an `ENCY_STORE_TOKEN`
+secret, which covers the first publish. Either way the author never handles a token.
+
+Repos made by hand from the template can be bound the same way:
+
+```bash
+ency-extension-mcp claim MyCoolExtension owner/MyCoolExtension
+```
 
 ## Setup (Cursor)
 

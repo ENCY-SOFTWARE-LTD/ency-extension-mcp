@@ -69,41 +69,49 @@ public class ExtensionStoreTools(IProcessRunner proc, IStoreClient store, StoreT
         var push = await proc.Run("git", "push", cloneDir);
         if (!push.Ok) return $"ERROR: push of the rename commit failed:\n{push.StdErr.Trim()}";
 
-        // Publish secret for the FIRST publish (afterwards the repo publishes via GitHub OIDC).
-        // The token comes from the server's own store login — the author never sees/handles it.
-        string? secretNote = null;
         string? token = null;
+        string? tokenError = null;
         try { token = await tokens.GetAccessToken(); }
-        catch (InvalidOperationException e) { secretNote = "! " + e.Message; }
-        if (secretNote != null)
-        {
-            // keep the login-expired message from above
-        }
-        else if (string.IsNullOrWhiteSpace(token))
-        {
-            secretNote = "! no store login — run `ency-extension-mcp login` once in a terminal, " +
-                         $"then set the secret yourself: gh secret set ENCY_STORE_TOKEN --repo {full}";
-        }
-        else
-        {
-            var secret = await proc.Run("gh", $"secret set ENCY_STORE_TOKEN --repo {full} --body \"{token}\"");
-            secretNote = secret.Ok
-                ? "publish secret ENCY_STORE_TOKEN is set (needed for the first publish only)"
-                : "! could not set the publish secret automatically: " + secret.StdErr.Trim();
-        }
+        catch (InvalidOperationException e) { tokenError = "! " + e.Message; }
+        string authNote = tokenError ?? await BootstrapPublisherAuth(name, full, token);
 
         return $"""
             Created {full} from the ENCY extension template.
 
             - local clone: {cloneDir}
             - renamed EncyExtension -> {name} ({touched} files) and pushed
-            - {secretNote}
+            - {authNote}
 
             Next steps:
             1. Write the extension code in src/ (start at Extension.cs; keep the id in {name}.settings.json in sync with ExtensionFactory).
             2. Fill src/readme.md (store card) and description/author in src/package.info.json.
             3. Call publish_extension with a version like 0.1.0 — it tags, GitHub Actions builds and publishes to the store.
             """;
+    }
+
+    /// <summary>
+    /// Prepare the repository to publish. Preferred path: claim the package name for it with the
+    /// author's own store login, which leaves NO credential in GitHub — every publish, the first one
+    /// included, then authenticates with the workflow's own OIDC token. Planting ENCY_STORE_TOKEN is
+    /// the fallback for when the store is unreachable or the name belongs to somebody else.
+    /// </summary>
+    internal async Task<string> BootstrapPublisherAuth(string name, string full, string? token)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+            return "! no store login — run `ency-extension-mcp login` once in a terminal, then create the "
+                   + $"repo again (or bind {full} to {name} from the store account page)";
+
+        string? claimFailure = await store.ClaimPackage(name, full, token);
+        if (claimFailure == null)
+            return $"{full} is registered as the trusted publisher of {name} — no repository secret is "
+                   + "needed, CI publishes with its GitHub OIDC token";
+
+        var secret = await proc.Run("gh", $"secret set ENCY_STORE_TOKEN --repo {full} --body \"{token}\"");
+        return secret.Ok
+            ? $"could not claim the name ({claimFailure}) — fell back to the ENCY_STORE_TOKEN secret, "
+              + "which covers the first publish"
+            : $"! could not claim the name ({claimFailure}) and could not set the fallback secret: "
+              + secret.StdErr.Trim();
     }
 
     // ---------------------------------------------------------------- publish_extension
