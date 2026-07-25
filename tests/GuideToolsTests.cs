@@ -20,11 +20,14 @@ public class GuideToolsTests
     }
 
     [Fact]
-    public void UnknownTypeThrowsWithTheAllowedValues()
+    public void UnknownTypeAnswersWithTheAllowedValuesInsteadOfThrowing()
     {
-        var ex = Assert.Throws<ArgumentException>(() => _tools.GetExtensionGuide("toolpath-thing"));
-        Assert.Contains("utility", ex.Message);
-        Assert.Contains("list", ex.Message);
+        // Thrown text is replaced by the MCP host with a generic "an error occurred", so the hint has
+        // to travel as a normal result for the agent to be able to correct itself.
+        string answer = _tools.GetExtensionGuide("toolpath-thing");
+        Assert.Contains("Unknown extension type 'toolpath-thing'", answer);
+        foreach (var g in ExtensionGuides.All) Assert.Contains(g.Key, answer);
+        Assert.Contains("list", answer);
     }
 
     [Fact]

@@ -24,10 +24,13 @@ public class GuideTools
         if (string.IsNullOrWhiteSpace(type) || type.Trim().Equals("list", StringComparison.OrdinalIgnoreCase))
             return ExtensionGuides.RenderList();
 
-        return ExtensionGuides.GetMarkdown(type)
-               ?? throw new ArgumentException(
-                   $"Unknown extension type '{type}'. Allowed: "
-                   + string.Join(", ", ExtensionGuides.All.Select(g => g.Key))
-                   + ", list.");
+        // A wrong type is answered, not thrown: the MCP host replaces exception text with a generic
+        // "an error occurred", so a thrown hint never reaches the agent. Returning it does.
+        return ExtensionGuides.GetMarkdown(type) ?? UnknownType(type);
     }
+
+    private static string UnknownType(string type) =>
+        $"Unknown extension type '{type}'. Call get_extension_guide again with one of:\n\n"
+        + string.Join("\n", ExtensionGuides.All.Select(g => $"- `{g.Key}` — {g.Description}"))
+        + "\n- `list` — the same table in one place";
 }
