@@ -40,6 +40,9 @@ $drift = @()
 # Set-Content -Encoding utf8 on PS 5.1 writes one, hence the explicit encoder.
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 
+# Collect every generated file first, then write or compare - both modes share one list.
+$outputs = @()
+
 foreach ($g in $index.guides) {
     # -Encoding UTF8 matters: without it PS 5.1 reads the file as ANSI and mangles every dash.
     $body = Get-Content (Join-Path $guidesDir $g.file) -Raw -Encoding UTF8
@@ -56,20 +59,76 @@ alwaysApply: false
      Edit it there and run tools/sync-rules.ps1 - changes made here are overwritten. -->
 
 "@
-    $text = $header + $body
-    $target = Join-Path $rulesDir $g.cursorRule
+    $outputs += [pscustomobject]@{
+        Name = $g.cursorRule
+        Path = Join-Path $rulesDir $g.cursorRule
+        Text = $header + $body
+    }
+}
 
+# AGENTS.md - the cross-tool entry point. Cursor picks the rules up on its own, but Claude Code,
+# Codex and Copilot read AGENTS.md instead, so they need a router: what this repo is, which guide to
+# open for which kind of extension, and how publishing works. It points at the same .mdc files
+# (plain markdown, any agent can read them) so nothing is duplicated.
+$rows = ($index.guides | Where-Object { $_.storeType -ne '' } | ForEach-Object {
+    "| $($_.description) | ``$($_.key)`` | ``.cursor/rules/$($_.cursorRule)`` |"
+}) -join "`n"
+
+$agents = @"
+# Working on this ENCY extension
+
+<!-- Generated from guides/_index.json in ENCY-SOFTWARE-LTD/ency-extension-mcp.
+     Edit the guides there and run tools/sync-rules.ps1 - changes made here are overwritten. -->
+
+This repo is one extension for ENCY CAM. GitHub Actions builds it and the ENCY Extension Store packs
+and publishes it when you push a version tag.
+
+**Decide which entry point you need BEFORE writing extension code, then read its guide.** Each guide
+gives the exact interface, the ``*.settings.json`` key, a compiling skeleton and the traps. The guides
+are plain markdown under ``.cursor/rules/`` - open them directly. If the ``ency-extension-store`` MCP
+server is connected, ``get_extension_guide`` serves the same text (``type=list`` lists every kind).
+
+| What the extension should do | Kind | Guide |
+|---|---|---|
+$rows
+
+Two guides apply to every change:
+
+- ``.cursor/rules/ency-extension.mdc`` - repo anatomy: the ``CAMAPI.ExtensionFactory`` contract,
+  matching ids between ``*.settings.json`` and the factory, ``package.info.json``, how to build for
+  packing.
+- ``.cursor/rules/ency-cookbook.mdc`` - COM lifetime (``ComWrapper``), errors through
+  ``TResultStatus``, asking the user for parameters, windows and STA rules.
+
+## Publishing
+
+``````bash
+git tag v1.2.3 && git push --tags
+``````
+
+Actions builds the project, the store packs the ENCY-format package and publishes it. A brand new
+extension waits for a store moderator (its direct card link works immediately); new versions of an
+approved extension go live at once.
+"@
+
+$outputs += [pscustomobject]@{
+    Name = 'AGENTS.md'
+    Path = Join-Path $TemplateDir 'AGENTS.md'
+    Text = $agents
+}
+
+foreach ($o in $outputs) {
     if ($Check) {
-        if (-not (Test-Path $target)) {
-            $drift += "$($g.cursorRule) (missing)"
+        if (-not (Test-Path $o.Path)) {
+            $drift += "$($o.Name) (missing)"
         }
-        elseif ([System.IO.File]::ReadAllText($target, $utf8NoBom) -ne $text) {
-            $drift += $g.cursorRule
+        elseif ([System.IO.File]::ReadAllText($o.Path, $utf8NoBom) -ne $o.Text) {
+            $drift += $o.Name
         }
     }
     else {
-        [System.IO.File]::WriteAllText($target, $text, $utf8NoBom)
-        Write-Output "wrote $($g.cursorRule)"
+        [System.IO.File]::WriteAllText($o.Path, $o.Text, $utf8NoBom)
+        Write-Output "wrote $($o.Name)"
     }
 }
 
@@ -81,5 +140,5 @@ if ($Check) {
     Write-Output 'rules are in sync'
 }
 else {
-    Write-Output "$($index.guides.Count) rules written to $rulesDir"
+    Write-Output "$($outputs.Count) files written to $TemplateDir"
 }

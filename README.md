@@ -74,9 +74,14 @@ assembly for `get_extension_guide`, and the template repo carries a generated sn
 text as Cursor rules. After editing a guide:
 
 ```bash
-powershell -NoProfile -File tools/sync-rules.ps1          # write .cursor/rules/*.mdc in the template
+powershell -NoProfile -File tools/sync-rules.ps1          # .cursor/rules/*.mdc + AGENTS.md in the template
 powershell -NoProfile -File tools/sync-rules.ps1 -Check    # exit 1 if the snapshot drifted
 ```
+
+Two formats, one source: Cursor picks up `.cursor/rules/*.mdc` by itself, while Claude Code, Codex and
+Copilot read `AGENTS.md` — so the generator also writes an `AGENTS.md` router (what the repo is, which
+guide to open for which kind of extension, how publishing works). It links the same `.mdc` files
+instead of copying them, so a guide edit never needs a second pass.
 
 `-TemplateDir` points elsewhere if your template checkout is not a sibling of this repo. Commit the
 template repo separately — the script only writes files. Adding a new entry point means: a guide file,
