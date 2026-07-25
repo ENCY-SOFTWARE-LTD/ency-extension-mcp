@@ -85,7 +85,7 @@ public class ExtensionStoreTools(IProcessRunner proc, IStoreClient store, StoreT
             Next steps:
             1. Write the extension code in src/ (start at Extension.cs; keep the id in {name}.settings.json in sync with ExtensionFactory).
             2. Fill src/readme.md (store card) and description/author in src/package.info.json.
-            3. Call publish_extension with a version like 0.1.0 — it tags, GitHub Actions builds and publishes to the store.
+            3. Call publish_extension (a version is optional — the next patch is used) — it tags, GitHub Actions builds and publishes to the store.
             """;
     }
 
@@ -121,11 +121,21 @@ public class ExtensionStoreTools(IProcessRunner proc, IStoreClient store, StoreT
         "builds, packs and publishes. New extensions land hidden until a store moderator approves. " +
         "Requires a clean working tree unless commitAll is true.")]
     public async Task<string> PublishExtension(
-        [Description("Version to publish, semver: 1.2.3")] string version,
+        [Description("Version to publish, semver: 1.2.3. Leave empty for the next patch after the "
+                     + "latest tag (0.1.0 for a repo that has never been released)")] string? version = null,
         [Description("Extension repo directory. Default: current directory")] string? repoDir = null,
         [Description("true = commit all pending changes as 'Release v<version>' before tagging")] bool commitAll = false)
     {
         var dir = Path.GetFullPath(repoDir ?? ".");
+        string? chosenNote = null;
+        if (string.IsNullOrWhiteSpace(version))
+        {
+            var tags = await proc.Run("git", "tag --list v[0-9]* --sort=-v:refname", dir);
+            if (!tags.Ok) return $"ERROR: not a git repo? {tags.StdErr.Trim()}";
+            version = NextVersion.FromTags(tags.StdOut);
+            chosenNote = $"no version given — publishing {version} (next after the latest tag)";
+        }
+        version = version!.TrimStart('v', 'V');
         if (!Regex.IsMatch(version, @"^\d+\.\d+\.\d+([\-.][0-9A-Za-z.\-]+)?$"))
             return $"ERROR: '{version}' is not a semver version (expected like 1.2.3).";
         var tag = $"v{version}";
@@ -158,7 +168,7 @@ public class ExtensionStoreTools(IProcessRunner proc, IStoreClient store, StoreT
 
         return $"""
             Pushed {tag} — GitHub Actions is building and publishing.
-
+            {(chosenNote != null ? chosenNote + "\n" : "")}
             {(run != null ? $"workflow run: {run.Value.Url} ({run.Value.Status})" : "the workflow run has not registered yet")}
 
             Call publish_status to follow it to the store card.

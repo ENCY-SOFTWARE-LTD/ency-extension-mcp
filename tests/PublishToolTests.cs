@@ -84,6 +84,45 @@ public class PublishToolTests
         Assert.Contains("pack produced no .nupkg", res);
     }
 
+    /** "publish it" with no version: the tool reads the tags itself instead of asking. */
+    [Fact]
+    public async Task PublishesTheNextPatchWhenNoVersionIsGiven()
+    {
+        var proc = new FakeProcessRunner()
+            .On("git tag --list", stdout: "v0.1.8\nv0.1.7\n")
+            .On("git status --porcelain")
+            .On("git rev-parse -q --verify refs/tags/v0.1.9", exit: 1)   // tag is free
+            .On("git tag v0.1.9")
+            .On("git push")
+            .On("gh run list", stdout: "[]");
+
+        var res = await Tools(proc).PublishExtension();
+
+        Assert.Contains("Pushed v0.1.9", res);
+        Assert.Contains("no version given", res);
+    }
+
+    [Fact]
+    public async Task StillRejectsAVersionThatIsNotSemver()
+    {
+        var res = await Tools(new FakeProcessRunner()).PublishExtension("1.2");
+        Assert.StartsWith("ERROR", res);
+    }
+
+    /** Authors type "v1.2.3" as often as "1.2.3" — the tag must not become vv1.2.3. */
+    [Fact]
+    public async Task AcceptsAVersionWrittenWithTheVPrefix()
+    {
+        var proc = new FakeProcessRunner()
+            .On("git status --porcelain")
+            .On("git rev-parse -q --verify refs/tags/v2.0.0", exit: 1)
+            .On("git tag v2.0.0")
+            .On("git push")
+            .On("gh run list", stdout: "[]");
+
+        Assert.Contains("Pushed v2.0.0", await Tools(proc).PublishExtension("v2.0.0"));
+    }
+
     [Fact]
     public async Task CreateRejectsBadName()
     {
