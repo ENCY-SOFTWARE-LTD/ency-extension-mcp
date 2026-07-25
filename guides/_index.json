@@ -49,6 +49,20 @@
       "cursorRule": "type-cldata-converter.mdc",
       "description": "Transform the calculated CLD toolpath data before it reaches the next pipeline stage",
       "storeType": "geom_cldata_converter"
+    },
+    {
+      "key": "plm",
+      "file": "plm.md",
+      "cursorRule": "type-plm.mdc",
+      "description": "Integrate ENCY with a PLM system: browse items, download projects, upload results",
+      "storeType": "plm"
+    },
+    {
+      "key": "cookbook",
+      "file": "cookbook.md",
+      "cursorRule": "ency-cookbook.mdc",
+      "description": "Cross-cutting rules for any extension: COM lifetime, error handling, parameter input, windows",
+      "storeType": ""
     }
   ]
 }
