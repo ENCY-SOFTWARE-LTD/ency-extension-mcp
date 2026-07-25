@@ -69,4 +69,17 @@ dotnet test tests/EncyExtensionMcp.Tests.csproj   # logic tests (processes faked
 dotnet run --project src                           # stdio server (speak JSON-RPC to it)
 ```
 
+The extension-type guides in `guides/` are the single source of truth: they are embedded into the
+assembly for `get_extension_guide`, and the template repo carries a generated snapshot of the same
+text as Cursor rules. After editing a guide:
+
+```bash
+powershell -NoProfile -File tools/sync-rules.ps1          # write .cursor/rules/*.mdc in the template
+powershell -NoProfile -File tools/sync-rules.ps1 -Check    # exit 1 if the snapshot drifted
+```
+
+`-TemplateDir` points elsewhere if your template checkout is not a sibling of this repo. Commit the
+template repo separately — the script only writes files. Adding a new entry point means: a guide file,
+an entry in `guides/_index.json` (the tests read it), and a re-run of the script.
+
 Config knobs: `ENCY_STORE_API` overrides the store API base (test stands).
