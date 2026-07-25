@@ -35,6 +35,20 @@
       "cursorRule": "type-geom-node-popup.mdc",
       "description": "Add items to the right-click menu of a node in the 3D geometry model tree",
       "storeType": "geom_model_node_popup"
+    },
+    {
+      "key": "operation_solver",
+      "file": "operation-solver.md",
+      "cursorRule": "type-operation-solver.mdc",
+      "description": "Implement your own toolpath calculation algorithm for one or more operation types",
+      "storeType": "operation"
+    },
+    {
+      "key": "cldata_converter",
+      "file": "cldata-converter.md",
+      "cursorRule": "type-cldata-converter.mdc",
+      "description": "Transform the calculated CLD toolpath data before it reaches the next pipeline stage",
+      "storeType": "geom_cldata_converter"
     }
   ]
 }
