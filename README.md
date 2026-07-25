@@ -40,6 +40,11 @@ with Claude Code when its CLI is present, and logs you in to the store if you ha
 account; only a refresh token is kept, under `%APPDATA%`). Restart Cursor afterwards. `--no-login`
 skips the login step.
 
+Releases are published from `publish-tool.yml` on a version tag, through nuget.org **trusted
+publishing** — the run swaps its GitHub OIDC token for a key that lives minutes, so no publishing
+credential is stored in this repo either. The policy on nuget.org points at this repo + that workflow;
+the account name comes from the `NUGET_USER` repository variable.
+
 Until the package reaches nuget.org, install it from the `.nupkg` attached to the latest
 [release](https://github.com/ENCY-SOFTWARE-LTD/ency-extension-mcp/releases):
 
