@@ -7,6 +7,20 @@
       "cursorRule": "type-utility.mdc",
       "description": "Add a button to the ENCY utilities menu or toolbar; runs on click with the full application context",
       "storeType": "utility"
+    },
+    {
+      "key": "global",
+      "file": "global.md",
+      "cursorRule": "type-global.mdc",
+      "description": "Run code once when ENCY starts and once when it shuts down; no UI of its own",
+      "storeType": "global"
+    },
+    {
+      "key": "utility_runner",
+      "file": "utility-runner.md",
+      "cursorRule": "type-utility-runner.mdc",
+      "description": "Intercept or wrap how another utility is executed - custom file selector, pre/post processing",
+      "storeType": "utility_runner"
     }
   ]
 }
