@@ -11,8 +11,11 @@ MCP server for the "write an ENCY extension in Cursor, never copy a file by hand
 | `get_extension_guide` | The skill library: which of the eight ENCY entry points to implement, how to register it, a minimal skeleton and the traps. `type=list` first, then the type. |
 
 Auth model: the server shells out to the **author's own `gh` and `git`** — your GitHub login is
-the credential there. For the store, `ency-extension-mcp login` (once) performs a Keycloak
-login and keeps only a refresh token. `create_extension_repo` then **claims the extension name for
+the credential there. For the store, `ency-extension-mcp login` (once) **opens the ENCY sign-in page
+in your browser** and keeps only a refresh token — the tool never sees your password, and SSO or
+two-factor work because they happen where they are meant to. `--password` falls back to typing an
+email and password in the terminal, for a machine with no browser.
+`create_extension_repo` then **claims the extension name for
 the new repository**, so no credential is stored in GitHub at all: every publish, the first one
 included, authenticates with the workflow's own GitHub OIDC token. If the claim cannot be made (store
 unreachable, name owned by somebody else) the tool falls back to planting an `ENCY_STORE_TOKEN`

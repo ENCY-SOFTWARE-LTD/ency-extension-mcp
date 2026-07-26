@@ -16,9 +16,25 @@ public class StoreTokenProvider
         Environment.GetEnvironmentVariable("ENCY_KEYCLOAK_TOKEN_ENDPOINT")
         ?? "https://webservices.encycam.com/keycloak/realms/licsys/protocol/openid-connect/token";
 
-    /** digital-twins has Direct Access Grants enabled today; switch to extension-store once it does too. */
+    /** The console password flow needs Direct Access Grants, which only digital-twins has. */
     private readonly string _clientId =
         Environment.GetEnvironmentVariable("ENCY_STORE_CLIENT_ID") ?? "digital-twins";
+
+    /**
+     * The browser flow needs no Direct Access Grants — that is the point of it — but it does need
+     * Standard Flow and a loopback redirect URI on the client.
+     *
+     * <para>Checked against the live realm on 2026-07-26: there is no `extension-store` client
+     * ("Client not found"), while `digital-twins` serves the sign-in page for a
+     * http://localhost:PORT/callback redirect, so this works today. It works because that client's
+     * valid redirect URIs are wildcard-permissive, which is somebody else's bug to fix — the moment
+     * it is tightened, the loopback URI has to be added explicitly or this breaks. The proper end
+     * state is a dedicated public client; when it exists, set ENCY_STORE_BROWSER_CLIENT_ID.</para>
+     */
+    private readonly string _browserClientId =
+        Environment.GetEnvironmentVariable("ENCY_STORE_BROWSER_CLIENT_ID")
+        ?? Environment.GetEnvironmentVariable("ENCY_STORE_CLIENT_ID")
+        ?? "digital-twins";
 
     private string? _cachedAccess;
     private DateTimeOffset _cachedUntil = DateTimeOffset.MinValue;
@@ -36,14 +52,17 @@ public class StoreTokenProvider
 
         if (_cachedAccess != null && DateTimeOffset.UtcNow < _cachedUntil) return _cachedAccess;
 
-        string? refresh = ReadStoredRefreshToken();
-        if (refresh == null) return null;
+        var stored = ReadStored();
+        if (stored.Refresh == null) return null;
 
+        // Refresh with the client that ISSUED the token: a refresh token belongs to its client, so
+        // signing in through the browser (extension-store) and refreshing as digital-twins would
+        // fail. Tokens saved before this was recorded predate the browser flow, hence the fallback.
         var resp = await Http.PostAsync(_tokenEndpoint, new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["grant_type"] = "refresh_token",
-            ["client_id"] = _clientId,
-            ["refresh_token"] = refresh,
+            ["client_id"] = stored.ClientId ?? _clientId,
+            ["refresh_token"] = stored.Refresh,
         }));
         var json = await resp.Content.ReadAsStringAsync();
         if (!resp.IsSuccessStatusCode)
@@ -55,11 +74,48 @@ public class StoreTokenProvider
         _cachedUntil = DateTimeOffset.UtcNow.AddSeconds(Math.Max(60, expiresIn - 60));
         // Keycloak rotates refresh tokens - keep the newest one.
         if (doc.RootElement.TryGetProperty("refresh_token", out var rt) && rt.GetString() is { Length: > 0 } newRefresh)
-            SaveRefreshToken(newRefresh);
+            SaveRefreshToken(newRefresh, stored.ClientId ?? _clientId);
         return _cachedAccess;
     }
 
-    /// <summary>Interactive `ency-extension-mcp login`: password grant, stores the refresh token.</summary>
+    /**
+     * Sign in through the ENCY sign-in page in a browser — the default, because this tool has no
+     * business seeing anyone's password, and because two-factor and SSO only work there.
+     */
+    public async Task<int> LoginBrowser()
+    {
+        string? refresh = await BrowserLogin.SignIn(_tokenEndpoint, _browserClientId,
+            OpenInBrowser, Console.Error.WriteLine, Http);
+        if (refresh == null) return 1;
+        SaveRefreshToken(refresh, _browserClientId);
+        Console.WriteLine("Signed in. Tokens are minted automatically from now on (stored: " + AuthFilePath + ").");
+        return 0;
+    }
+
+    private static Task OpenInBrowser(string url)
+    {
+        try
+        {
+            // UseShellExecute is what hands the URL to the default browser rather than trying to
+            // execute it; without it this throws on Windows.
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url)
+            {
+                UseShellExecute = true,
+            });
+        }
+        catch (Exception e)
+        {
+            // Not fatal: the address was printed, and pasting it by hand works the same.
+            Console.Error.WriteLine("Could not open the browser (" + e.Message + ") — open the address above.");
+        }
+        return Task.CompletedTask;
+    }
+
+    /**
+     * `ency-extension-mcp login --password`: the old console flow, kept for the case the browser
+     * one cannot work — no loopback redirect allowed on the Keycloak client yet, or no browser on
+     * the machine at all. It needs Direct Access Grants, which is why it uses the other client.
+     */
     public async Task<int> LoginInteractive()
     {
         Console.Write("ENCY store login (licsys email): ");
@@ -90,26 +146,33 @@ public class StoreTokenProvider
             Console.Error.WriteLine("Keycloak returned no refresh token - cannot stay logged in.");
             return 1;
         }
-        SaveRefreshToken(refresh);
+        SaveRefreshToken(refresh, _clientId);
         Console.WriteLine("Logged in. Tokens are minted automatically from now on (stored: " + AuthFilePath + ").");
         return 0;
     }
 
-    private static string? ReadStoredRefreshToken()
+    /** clientId is null for files written before the browser flow existed. */
+    private record Stored(string? Refresh, string? ClientId);
+
+    private static Stored ReadStored()
     {
         try
         {
-            if (!File.Exists(AuthFilePath)) return null;
+            if (!File.Exists(AuthFilePath)) return new Stored(null, null);
             using var doc = JsonDocument.Parse(File.ReadAllText(AuthFilePath));
-            return doc.RootElement.TryGetProperty("refresh_token", out var rt) ? rt.GetString() : null;
+            var root = doc.RootElement;
+            return new Stored(
+                root.TryGetProperty("refresh_token", out var rt) ? rt.GetString() : null,
+                root.TryGetProperty("client_id", out var cid) ? cid.GetString() : null);
         }
-        catch (Exception) { return null; }
+        catch (Exception) { return new Stored(null, null); }
     }
 
-    private static void SaveRefreshToken(string refresh)
+    private static void SaveRefreshToken(string refresh, string clientId)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(AuthFilePath)!);
-        File.WriteAllText(AuthFilePath, JsonSerializer.Serialize(new { refresh_token = refresh }));
+        File.WriteAllText(AuthFilePath,
+            JsonSerializer.Serialize(new { refresh_token = refresh, client_id = clientId }));
     }
 
     private static string ReadHidden()

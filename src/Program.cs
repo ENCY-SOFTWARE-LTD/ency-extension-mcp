@@ -3,9 +3,16 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-// `ency-extension-mcp login` — interactive one-time store login (no MCP involved).
+// `ency-extension-mcp login` — one-time store sign-in through the browser (no MCP involved).
+// `--password` falls back to typing an email and password here, for a machine or a Keycloak client
+// where the browser round-trip cannot work.
 if (args.Length > 0 && args[0].Equals("login", StringComparison.OrdinalIgnoreCase))
-    return await new StoreTokenProvider().LoginInteractive();
+{
+    var provider = new StoreTokenProvider();
+    bool console = args.Contains("--password", StringComparer.OrdinalIgnoreCase)
+                || args.Contains("--console", StringComparer.OrdinalIgnoreCase);
+    return console ? await provider.LoginInteractive() : await provider.LoginBrowser();
+}
 
 // `ency-extension-mcp claim <PackageId> <owner/repo>` — bind a repo so its CI publishes without a secret.
 if (args.Length > 0 && args[0].Equals("claim", StringComparison.OrdinalIgnoreCase))
@@ -18,8 +25,10 @@ if (args.Length > 0 && args[0].Equals("claim", StringComparison.OrdinalIgnoreCas
 if (args.Length > 0 && args[0].Equals("setup", StringComparison.OrdinalIgnoreCase))
 {
     var tokenProvider = new StoreTokenProvider();
+    bool console = args.Contains("--password", StringComparer.OrdinalIgnoreCase);
     return await SetupCommand.Run(SetupCommand.DefaultCursorConfigPath, new ProcessRunner(),
-        () => File.Exists(StoreTokenProvider.AuthFilePath), tokenProvider.LoginInteractive,
+        () => File.Exists(StoreTokenProvider.AuthFilePath),
+        console ? tokenProvider.LoginInteractive : tokenProvider.LoginBrowser,
         args.Contains("--no-login", StringComparer.OrdinalIgnoreCase), Console.WriteLine);
 }
 
