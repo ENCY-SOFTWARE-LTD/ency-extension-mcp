@@ -14,7 +14,7 @@ namespace EncyExtensionMcp;
 [McpServerToolType]
 public class ExtensionStoreTools(IProcessRunner proc, IStoreClient store, StoreTokenProvider tokens)
 {
-    private const string TemplateRepo = "ENCY-SOFTWARE-LTD/ency-extension-template";
+    private const string TemplateRepo = "EncySoftware/ency-extension-template";
     private const string WorkflowFile = "publish.yml";
 
     // ---------------------------------------------------------------- create_extension_repo

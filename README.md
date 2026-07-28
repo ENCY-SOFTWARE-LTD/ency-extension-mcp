@@ -1,7 +1,7 @@
 # ency-extension-mcp
 
 MCP server for the "write an ENCY extension in Cursor, never copy a file by hand" flow
-(see [ency-extension-template](https://github.com/ENCY-SOFTWARE-LTD/ency-extension-template)):
+(see [ency-extension-template](https://github.com/EncySoftware/ency-extension-template)):
 
 | Tool | What it does |
 |---|---|
@@ -49,7 +49,7 @@ credential is stored in this repo either. The policy on nuget.org points at this
 the account name comes from the `NUGET_USER` repository variable.
 
 Until the package reaches nuget.org, install it from the `.nupkg` attached to the latest
-[release](https://github.com/ENCY-SOFTWARE-LTD/ency-extension-mcp/releases):
+[release](https://github.com/EncySoftware/ency-extension-mcp/releases):
 
 ```bash
 dotnet tool install -g EncySoftware.ExtensionStoreMcp --add-source <folder with the .nupkg>
