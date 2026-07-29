@@ -80,8 +80,15 @@ $agents = @"
 <!-- Generated from guides/_index.json in EncySoftware/ency-extension-mcp.
      Edit the guides there and run tools/sync-rules.ps1 - changes made here are overwritten. -->
 
-This repo is one extension for ENCY CAM. GitHub Actions builds it and the ENCY Extension Store packs
-and publishes it when you push a version tag.
+This repo is one extension for **ENCY 3**. GitHub Actions builds it and the ENCY Extension Store
+packs and publishes it when you push a version tag.
+
+**Write for ENCY 3, not ENCY 2.** The SDK is pinned in ``src/EncyExtension.csproj`` as
+``EncySoftware.CAMAPI.Sdk.Net`` 3.0.1-rc.22 - a release candidate, because that is the only 3.x
+published so far. Do not "fix" that by moving to a 2.x version: 2.x is the previous generation of the
+product, and an extension built against it is an extension for the old ENCY. If the pinned rc is a
+problem, say so instead of switching lines quietly. (An assistant that read the old instructions
+spent an hour writing for ENCY 2 - hence this paragraph.)
 
 **Decide which entry point you need BEFORE writing extension code, then read its guide.** Each guide
 gives the exact interface, the ``*.settings.json`` key, a compiling skeleton and the traps. The guides
